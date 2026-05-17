@@ -1,0 +1,148 @@
+{
+  "H3": {
+    "temperature": {
+      "MAE": 0.0313,
+      "RMSE": 0.0436
+    },
+    "humidite": {
+      "MAE": 0.0692,
+      "RMSE": 0.0996
+    },
+    "precipitation": {
+      "MAE": 0.0075,
+      "RMSE": 0.0217
+    },
+    "vent": {
+      "MAE": 0.0525,
+      "RMSE": 0.0678
+    }
+  },
+  "H6": {
+    "temperature": {
+      "MAE": 0.033,
+      "RMSE": 0.0458
+    },
+    "humidite": {
+      "MAE": 0.0733,
+      "RMSE": 0.1054
+    },
+    "precipitation": {
+      "MAE": 0.0075,
+      "RMSE": 0.0227
+    },
+    "vent": {
+      "MAE": 0.0532,
+      "RMSE": 0.0683
+    }
+  },
+  "H12": {
+    "temperature": {
+      "MAE": 0.0344,
+      "RMSE": 0.0476
+    },
+    "humidite": {
+      "MAE": 0.0767,
+      "RMSE": 0.1095
+    },
+    "precipitation": {
+      "MAE": 0.0076,
+      "RMSE": 0.0227
+    },
+    "vent": {
+      "MAE": 0.054,
+      "RMSE": 0.0692
+    }
+  },
+  "H24": {
+    "temperature": {
+      "MAE": 0.0365,
+      "RMSE": 0.0502
+    },
+    "humidite": {
+      "MAE": 0.0816,
+      "RMSE": 0.1161
+    },
+    "precipitation": {
+      "MAE": 0.0077,
+      "RMSE": 0.0229
+    },
+    "vent": {
+      "MAE": 0.0544,
+      "RMSE": 0.0697
+    }
+  },
+  "J2": {
+    "temperature": {
+      "MAE": 0.0326,
+      "RMSE": 0.0459
+    },
+    "humidite": {
+      "MAE": 0.0816,
+      "RMSE": 0.1136
+    },
+    "precipitation": {
+      "MAE": 0.003,
+      "RMSE": 0.0042
+    },
+    "vent": {
+      "MAE": 0.0266,
+      "RMSE": 0.0341
+    }
+  },
+  "J3": {
+    "temperature": {
+      "MAE": 0.0442,
+      "RMSE": 0.0549
+    },
+    "humidite": {
+      "MAE": 0.1082,
+      "RMSE": 0.1735
+    },
+    "precipitation": {
+      "MAE": 0.0037,
+      "RMSE": 0.0051
+    },
+    "vent": {
+      "MAE": 0.0204,
+      "RMSE": 0.0282
+    }
+  },
+  "J4": {
+    "temperature": {
+      "MAE": 0.0257,
+      "RMSE": 0.0313
+    },
+    "humidite": {
+      "MAE": 0.0387,
+      "RMSE": 0.054
+    },
+    "precipitation": {
+      "MAE": 0.0039,
+      "RMSE": 0.0048
+    },
+    "vent": {
+      "MAE": 0.0204,
+      "RMSE": 0.0296
+    }
+  },
+  "J5": {
+    "temperature": {
+      "MAE": 0.0425,
+      "RMSE": 0.0665
+    },
+    "humidite": {
+      "MAE": 0.0981,
+      "RMSE": 0.1353
+    },
+    "precipitation": {
+      "MAE": 0.0073,
+      "RMSE": 0.0121
+    },
+    "vent": {
+      "MAE": 0.0186,
+      "RMSE": 0.026
+    }
+  },
+  "date_entrainement": "2026-04-24 12:29",
+  "version": "1.0"
+}
