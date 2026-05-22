@@ -19,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173","https://loquacious-dasik-e7e2ed.netlify.app",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
