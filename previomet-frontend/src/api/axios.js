@@ -6,7 +6,7 @@ import axios from 'axios';
 // Au lieu d'écrire "http://127.0.0.1:8000" à chaque appel API,
 // on crée une instance configurée une seule fois ici.
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000',
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
 // ── 2. Intercepteur de requête ─────────────────────────────────────
