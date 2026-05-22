@@ -44,7 +44,7 @@ export default function DashboardLayout({
 
   const styles = {
     root: {
-      display: 'flex', height: '100vh', overflow: 'hidden',
+      display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative',
       fontFamily: FONTS.body, background: pageBg,
       '--pm-bg':      pageBg,
       '--pm-card':    cardBg,
@@ -62,9 +62,11 @@ export default function DashboardLayout({
     topbar: {
       background: topbarBg,
       borderBottom: `1px solid ${border}`,
-      padding: '0 28px', height: TOPBAR.height,
+      padding: '0 clamp(12px, 3%, 28px)',
+      height: TOPBAR.height,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       flexShrink: 0, boxShadow: SHADOW.sm,
+      gap: 8, overflow: 'hidden',
     },
     // Intitulé de l'onglet actif dans la topbar → couleur du rôle
     topbarTitle: {
@@ -72,8 +74,9 @@ export default function DashboardLayout({
       color: textPri,
     },
     topbarRight: {
-      display: 'flex', alignItems: 'center', gap: 14,
+      display: 'flex', alignItems: 'center', gap: 10,
       fontSize: 13.5, color: textMut,
+      minWidth: 0, flexShrink: 1, overflow: 'hidden',
     },
     topbarSep: { color: border, userSelect: 'none' },
     userBadge: {
@@ -88,10 +91,10 @@ export default function DashboardLayout({
       flexShrink: 0, userSelect: 'none',
     },
     // Nom d'utilisateur dans la topbar
-    username: { fontSize: 13.5, fontWeight: 600, color: textPri },
-    contentZone: {
-      flex: 1, overflowY: 'auto', display: 'flex',
-      flexDirection: 'column', animation: 'fadeUp 0.3s ease', background: pageBg,
+    username: {
+      fontSize: 13.5, fontWeight: 600, color: textPri,
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      maxWidth: 'clamp(60px, 15vw, 160px)',
     },
   };
 

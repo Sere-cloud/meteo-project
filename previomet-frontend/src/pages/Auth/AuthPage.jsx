@@ -234,6 +234,14 @@ export default function AuthPage() {
         .modal-scroll::-webkit-scrollbar-track { background: rgba(14,76,122,0.06); border-radius: 99px; margin: 18px 0;}
         .modal-scroll::-webkit-scrollbar-thumb { background: rgba(14,76,122,0.6); border-radius: 99px; border: 2px solid white; }
         .modal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(14,76,122,0.6); }
+
+        /* ── RESPONSIVE MOBILE ── */
+        @media (max-width: 640px) {
+          /* Cache l'illustration sur mobile */
+          .auth-illustration { display: none !important; }
+          /* Le formulaire prend toute la largeur */
+          .auth-form-panel { width: 100% !important; }
+        }
       `}</style>
 
       {/* Fenêtre visible = 100vw. Le rail intérieur fait 200vw et glisse. */}
@@ -246,16 +254,18 @@ export default function AuthPage() {
           transition: 'transform 0.55s cubic-bezier(0.4,0,0.2,1)',
         }}>
 
-          {/* ── Slot LOGIN : illustration gauche | formulaire droite ── */}
+          {/* Slot LOGIN */}
           <div style={{ width: '50%', height: '100%', display: 'flex', flexShrink: 0 }}>
-            <PanneauIllustration onSwitch={() => switchTab('register')} switchLabel="S'inscrire" switchHint="Pas encore de compte ?" />
-            <PanneauFormulaire activeTab="login" {...formProps} />
+            <PanneauIllustration className="auth-illustration" onSwitch={() => switchTab('register')} switchLabel="S'inscrire" switchHint="Pas encore de compte ?" />
+            <PanneauFormulaire className="auth-form-panel" activeTab="login" {...formProps}
+              onSwitch={() => switchTab('register')} switchLabel="S'inscrire" switchHint="Pas encore de compte ?" />
           </div>
 
-          {/* ── Slot REGISTER : formulaire gauche | illustration droite ── */}
+          {/* Slot REGISTER */}
           <div style={{ width: '50%', height: '100%', display: 'flex', flexShrink: 0 }}>
-            <PanneauFormulaire activeTab="register" {...formProps} />
-            <PanneauIllustration onSwitch={() => switchTab('login')} switchLabel="Se connecter" switchHint="Déjà un compte ?" />
+            <PanneauFormulaire className="auth-form-panel" activeTab="register" {...formProps}
+              onSwitch={() => switchTab('login')} switchLabel="Se connecter" switchHint="Déjà un compte ?" />
+            <PanneauIllustration className="auth-illustration" onSwitch={() => switchTab('login')} switchLabel="Se connecter" switchHint="Déjà un compte ?" />
           </div>
 
         </div>
@@ -397,28 +407,28 @@ export default function AuthPage() {
 // ════════════════════════════════════════════════════════
 // PANNEAU ILLUSTRATION — réutilisé dans les deux slots
 // ════════════════════════════════════════════════════════
-function PanneauIllustration({ onSwitch, switchLabel, switchHint }) {
+function PanneauIllustration({ onSwitch, switchLabel, switchHint, className }) {
   return (
-    <div style={{
+    <div className={className} style={{
       flex: 1, background: 'white',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      padding: '200px 90px', gap: 5,
+      padding: 'clamp(24px, 8%, 90px)', gap: 5,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
         <img src={logoImg} alt="logo" style={{ width: 40, height: 40 }} />
         <span style={{
           fontFamily: "'Syne', sans-serif", fontSize: 26,
           fontWeight: 700, color: '#0a1a4a', letterSpacing: '0.5px',
-        }}>
-          PrevioMet
-        </span>
+        }}>PrevioMet</span>
       </div>
 
-      <img src={weatherSvg} alt="illustration météo" style={{ width: '100%', maxWidth: 370, height: 'auto' }} />
+      <img src={weatherSvg} alt="illustration météo"
+        style={{ width: '100%', maxWidth: 370, height: 'auto' }} />
 
       <div style={{ textAlign: 'center', maxWidth: 400 }}>
-        <p style={{ fontFamily: "'Syne', sans-serif", fontSize: 28, fontWeight: 700, color: '#0a1a4a', marginBottom: 10 }}>
+        <p style={{ fontFamily: "'Syne', sans-serif", fontSize: 'clamp(18px, 3vw, 28px)',
+          fontWeight: 700, color: '#0a1a4a', marginBottom: 10 }}>
           Prévisions météo intelligentes
         </p>
         <p style={{ color: '#5a7a9a', fontSize: 14, lineHeight: 1.8 }}>
@@ -434,9 +444,7 @@ function PanneauIllustration({ onSwitch, switchLabel, switchHint }) {
           fontSize: 16, fontWeight: 600, fontFamily: "'Inter', sans-serif",
           background: 'linear-gradient(135deg, #0a1a4a, #0e7c8a)',
           color: 'white', border: 'none', width: 200, height: 50,
-        }}>
-          {switchLabel}
-        </button>
+        }}>{switchLabel}</button>
       </div>
     </div>
   );
@@ -446,24 +454,25 @@ function PanneauIllustration({ onSwitch, switchLabel, switchHint }) {
 // PANNEAU FORMULAIRE — réutilisé dans les deux slots
 // activeTab = 'login' | 'register' — détermine quel form afficher
 // ════════════════════════════════════════════════════════
+// Remplace la fonction PanneauFormulaire existante
 function PanneauFormulaire({
   activeTab, tab,
   loginForm, registerForm,
   onLoginSubmit, onRegisterSubmit,
   apiError, loading,
   geoLoading, geoLocked,
+  onSwitch, switchLabel, switchHint, className,  // ← nouveaux props pour le bouton mobile
 }) {
-  // Ce panneau ne rend son contenu que quand il est dans le slot actif
   const isActive = activeTab === tab;
 
   return (
-    <div style={{
-      width: 700,
+    <div className={className} style={{
+      width: 'clamp(300px, 50vw, 700px)',
       background: 'linear-gradient(160deg, #0a1a4a 0%, #0e4f7a 45%, #0e7c8a 100%)',
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      padding: '50px 50px', overflowY: 'auto', position: 'relative',
+      padding: 'clamp(24px, 5%, 50px)', overflowY: 'auto', position: 'relative',
     }}>
-      {/* Cercles décoratifs en arrière-plan */}
+      {/* Cercles décoratifs */}
       <div style={{
         position: 'absolute', bottom: -80, right: -80,
         width: 300, height: 300, borderRadius: '50%',
@@ -477,110 +486,87 @@ function PanneauFormulaire({
 
       <div style={{ position: 'relative', zIndex: 1 }}>
 
-        {/* ── Formulaire Connexion ── */}
         {activeTab === 'login' && (
           <div>
             <h2 style={titleStyle}>Bon retour 👋</h2>
             <p style={subtitleStyle}>Connectez-vous pour accéder à vos prévisions</p>
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)}>
               <Field label="Email" error={loginForm.formState.errors.email?.message}>
-                <input
-                  type="email" placeholder="vous@exemple.com"
+                <input type="email" placeholder="vous@exemple.com"
                   {...loginForm.register('email')}
-                  style={inputStyle(!!loginForm.formState.errors.email)}
-                />
+                  style={inputStyle(!!loginForm.formState.errors.email)} />
               </Field>
               <Field label="Mot de passe" error={loginForm.formState.errors.password?.message}>
-                <input
-                  type="password" placeholder="••••••••"
+                <input type="password" placeholder="••••••••"
                   {...loginForm.register('password')}
-                  style={inputStyle(!!loginForm.formState.errors.password)}
-                />
+                  style={inputStyle(!!loginForm.formState.errors.password)} />
               </Field>
               {isActive && apiError && <p style={errorStyle}>{apiError}</p>}
               <button type="submit" disabled={loading} style={btnStyle}>
                 {loading ? 'Connexion...' : 'Se connecter'}
               </button>
               <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
-                <span
-                  style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                  onClick={() => alert('Fonctionnalité mot de passe oublié — Phase 5')}
-                >
+                <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => alert('Fonctionnalité mot de passe oublié — Phase 5')}>
                   Mot de passe oublié ?
                 </span>
               </p>
             </form>
+            {/* Bouton switch visible uniquement sur mobile */}
+            <div style={{ marginTop: 24, textAlign: 'center' }}>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>{switchHint}</p>
+              <button onClick={onSwitch} style={{
+                ...btnStyle, background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.4)', marginTop: 0,
+              }}>{switchLabel}</button>
+            </div>
           </div>
         )}
 
-        {/* ── Formulaire Inscription ── */}
         {activeTab === 'register' && (
           <div>
             <h2 style={titleStyle}>Créer un compte</h2>
             <p style={subtitleStyle}>Rejoignez PrevioMet en quelques étapes</p>
             <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
               <Field label="Nom d'utilisateur" error={registerForm.formState.errors.username?.message}>
-                <input
-                  placeholder="jean_dupont"
-                  {...registerForm.register('username')}
-                  style={inputStyle(!!registerForm.formState.errors.username)}
-                />
+                <input placeholder="jean_dupont" {...registerForm.register('username')}
+                  style={inputStyle(!!registerForm.formState.errors.username)} />
               </Field>
               <Field label="Email" error={registerForm.formState.errors.email?.message}>
-                <input
-                  type="email" placeholder="vous@exemple.com"
-                  {...registerForm.register('email')}
-                  style={inputStyle(!!registerForm.formState.errors.email)}
-                />
+                <input type="email" placeholder="vous@exemple.com" {...registerForm.register('email')}
+                  style={inputStyle(!!registerForm.formState.errors.email)} />
               </Field>
               <Field label="Mot de passe" error={registerForm.formState.errors.password?.message}>
-                <input
-                  type="password" placeholder="Min. 8 car., 1 majuscule, 1 chiffre"
+                <input type="password" placeholder="Min. 8 car., 1 majuscule, 1 chiffre"
                   {...registerForm.register('password')}
-                  style={inputStyle(!!registerForm.formState.errors.password)}
-                />
+                  style={inputStyle(!!registerForm.formState.errors.password)} />
               </Field>
               <Field label="Ville" error={registerForm.formState.errors.ville?.message}>
                 <input
-                  placeholder={geoLoading ? '📍 Détection de votre position...' : 'Ex : Douala, Edéa, Bafoussam...'}
-                  {...registerForm.register('ville')}
-                  disabled={geoLocked}
-                  style={{
-                    ...inputStyle(!!registerForm.formState.errors.ville),
-                    background: geoLocked ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)',
-                  }}
-                />
-                {geoLoading && (
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-                    Demande de permission en cours...
-                  </p>
-                )}
-                {geoLocked && (
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
-                    📍 Position détectée automatiquement
-                  </p>
-                )}
-                {!geoLoading && !geoLocked && (
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
-                    Ou autorisez la localisation pour remplissage automatique
-                  </p>
-                )}
+                  placeholder={geoLoading ? '📍 Détection...' : 'Ex : Douala, Edéa, Bafoussam...'}
+                  {...registerForm.register('ville')} disabled={geoLocked}
+                  style={{ ...inputStyle(!!registerForm.formState.errors.ville),
+                    background: geoLocked ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.1)' }} />
+                {geoLocked && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>📍 Position détectée</p>}
+                {!geoLoading && !geoLocked && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>Ou autorisez la localisation</p>}
               </Field>
               <Field label="Domaine d'activité" error={registerForm.formState.errors.role?.message}>
-                <select
-                  {...registerForm.register('role')}
-                  style={inputStyle(!!registerForm.formState.errors.role)}
-                >
+                <select {...registerForm.register('role')} style={inputStyle(!!registerForm.formState.errors.role)}>
                   <option value="">-- Choisissez --</option>
                   <option value="agriculteur">Agriculture</option>
                   <option value="logisticien">Logistique</option>
                 </select>
               </Field>
               {isActive && apiError && <p style={errorStyle}>{apiError}</p>}
-              <button type="submit" disabled={loading} style={btnStyle}>
-                Continuer →
-              </button>
+              <button type="submit" disabled={loading} style={btnStyle}>Continuer →</button>
             </form>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>{switchHint}</p>
+              <button onClick={onSwitch} style={{
+                ...btnStyle, background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.4)', marginTop: 0,
+              }}>{switchLabel}</button>
+            </div>
           </div>
         )}
 
