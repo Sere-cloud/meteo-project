@@ -54,7 +54,7 @@ export const FARMER_THEME = {
 };
 
 export const LOGISTICS_THEME = {
-  accentColor:      COLORS.teal,
+  accentColor:      COLORS.blueDark,
   accentLight:      COLORS.tealLight,
   sidebarGradient:  SIDEBAR_GRADIENTS.logistics,
   pageBg:           PAGE_BG.logistics,

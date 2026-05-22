@@ -1,6 +1,6 @@
 // src/pages/Shared/Sidebar.jsx
 
-import { useState }               from 'react';
+import { useState, useEffect }               from 'react';
 import { SIDEBAR, FONTS }         from '../../constants/theme';
 import logoWhite                  from '../../assets/atmospheric-conditions white.png';
 import exitIcon                   from '../../assets/exit.png';
@@ -14,19 +14,39 @@ export default function Sidebar({
   sidebarGradient  = 'linear-gradient(180deg, #0a1a4a 0%, #0e4f7a 55%, #0e7c8a 100%)',
 }) {
   const [isOpen,            setIsOpen]            = useState(true);
-  const [hoveredKey,        setHoveredKey]        = useState(null);
+  
+  const [hoveredKey, setHoveredKey]        = useState(null);
   const [hoveredDisconnect, setHoveredDisconnect] = useState(false);
-
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setIsOpen(false); // sidebar fermée par défaut sur mobile
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   const sidebarWidth = isOpen ? SIDEBAR.widthOpen : SIDEBAR.widthClosed;
 
   const S = {
     sidebar: {
-      width: sidebarWidth, minWidth: sidebarWidth,
+      width: sidebarWidth,
+      minWidth: isMobile ? 0 : sidebarWidth,
       background: sidebarGradient,
       display: 'flex', flexDirection: 'column',
       transition: `width ${SIDEBAR.transitionMs}ms cubic-bezier(0.4,0,0.2,1),
                    min-width ${SIDEBAR.transitionMs}ms cubic-bezier(0.4,0,0.2,1)`,
-      overflow: 'hidden', position: 'relative', zIndex: 20, flexShrink: 0,
+      overflow: 'hidden',
+      // Sur mobile : superposition en overlay
+      position: isMobile ? 'absolute' : 'relative',
+      top: isMobile ? 0 : 'auto',
+      left: isMobile ? 0 : 'auto',
+      height: isMobile ? '100%' : 'auto',
+      zIndex: 20, flexShrink: 0,
     },
     header: {
       padding: '18px 6px', display: 'flex', alignItems: 'center', gap: 6,

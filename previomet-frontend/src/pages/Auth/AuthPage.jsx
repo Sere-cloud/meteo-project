@@ -436,16 +436,6 @@ function PanneauIllustration({ onSwitch, switchLabel, switchHint, className }) {
           Anticipez, planifiez, agissez.
         </p>
       </div>
-
-      <div style={{ textAlign: 'center', marginTop: 4 }}>
-        <p style={{ fontSize: 13, color: '#5a7a9a', marginBottom: 10 }}>{switchHint}</p>
-        <button onClick={onSwitch} style={{
-          padding: '10px 20px', borderRadius: 9, cursor: 'pointer',
-          fontSize: 16, fontWeight: 600, fontFamily: "'Inter', sans-serif",
-          background: 'linear-gradient(135deg, #0a1a4a, #0e7c8a)',
-          color: 'white', border: 'none', width: 200, height: 50,
-        }}>{switchLabel}</button>
-      </div>
     </div>
   );
 }
@@ -505,12 +495,12 @@ function PanneauFormulaire({
               <button type="submit" disabled={loading} style={btnStyle}>
                 {loading ? 'Connexion...' : 'Se connecter'}
               </button>
-              <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+              {/*<p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
                 <span style={{ cursor: 'pointer', textDecoration: 'underline' }}
                   onClick={() => alert('Fonctionnalité mot de passe oublié — Phase 5')}>
                   Mot de passe oublié ?
                 </span>
-              </p>
+              </p>*/}
             </form>
             {/* Bouton switch visible uniquement sur mobile */}
             <div style={{ marginTop: 24, textAlign: 'center' }}>
