@@ -1,8 +1,13 @@
+#backend/config.py
+
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite:///./meteo_app.db"
+    DATABASE_URL: str = f"sqlite:///{os.path.join(BASE_DIR, 'meteo_app.db')}"
     SECRET_KEY: str   = "meteo_cameroun_secret_key_2025_changez_en_prod"
     ALGORITHM: str    = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
