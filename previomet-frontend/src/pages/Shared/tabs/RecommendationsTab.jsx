@@ -1,478 +1,358 @@
-// ============================================================
-// RecommendationsTab.jsx  —  Fichier 7/12
-// Onglet Recommandations — commun à Farmer et Logistics.
-//
-// Structure :
-//   ┌─────────────────────────────────────────────────────┐
-//   │  Topbar : profil actif (catégories + specs)         │
-//   │           + bouton "Tout supprimer"                 │
-//   ├─────────────────────────────────────────────────────┤
-//   │  Section URGENTES (rouge)                           │
-//   │    └── Cards accordion (chevron déroulant)          │
-//   ├─────────────────────────────────────────────────────┤
-//   │  Section NON URGENTES (vert agri / bleu logi)       │
-//   │    └── Cards accordion                             │
-//   ├─────────────────────────────────────────────────────┤
-//   │  État vide illustré (si aucune reco)                │
-//   └─────────────────────────────────────────────────────┘
-//
-// Props reçues :
-//   accentColor {string}  — couleur des non-urgentes
-//                           (#1a7a3a agri  |  #0e4f7a logi)
-//   accentLight {string}  — fond clair de l'accent
-//                           (#e8f5ec agri  |  #e8f4f8 logi)
-//
-// Données dynamiques :
-//   GET /recommendations/  → liste complète des recommandations
-//   DELETE /recommendations/{id}  → suppression unitaire
-//   DELETE /recommendations/      → suppression globale
-// ============================================================
+// src/pages/Shared/tabs/RecommendationsTab.jsx
+// Props : accentColor, accentLight, onRecoCount, showSpecs
 
-import { useState, useEffect, useContext } from 'react';
-import { AuthContext }                     from '../../../context/AuthContext';
-import { getRecommendations, deleteRecommendation, deleteAllRecommendations } from '../../../api/farmer';
+import { useState, useEffect } from 'react';
+import { getProfile, getRecommendations, deleteRecommendation, deleteAllRecommendations } from '../../../api/farmer';
 
-// ── Formatage de date ISO → "12 Mai 2026 · 08h30" ───────────
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+// ── Calcul de la date cible depuis l'horizon ──────────────────────────────────
+function horizonToDateLabel(horizon) {
+  const now = new Date();
 
-function formatDate(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} · ${
-      String(d.getHours()).padStart(2,'0')}h${String(d.getMinutes()).padStart(2,'0')}`;
-  } catch {
-    return iso;
+  if (!horizon || horizon === 'Actuellement') {
+    return `Aujourd'hui · ${String(now.getHours()).padStart(2,'0')}h${String(now.getMinutes()).padStart(2,'0')}`;
   }
+
+  const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+  const matchH = horizon.match(/^H\+(\d+)$/);
+  if (matchH) {
+    const h      = parseInt(matchH[1]);
+    const target = new Date(now.getTime() + h * 3600 * 1000);
+    const hh     = String(target.getHours()).padStart(2,'0');
+    const mm     = String(target.getMinutes()).padStart(2,'0');
+    const isToday    = target.toDateString() === now.toDateString();
+    const isTomorrow = target.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+    if (isToday)    return `Aujourd'hui à ${hh}h${mm}`;
+    if (isTomorrow) return `Demain à ${hh}h${mm}`;
+    return `${target.getDate()} ${MONTHS[target.getMonth()]} à ${hh}h${mm}`;
+  }
+
+  const matchJ = horizon.match(/^J\+(\d+)$/);
+  if (matchJ) {
+    const j      = parseInt(matchJ[1]);
+    const target = new Date(now);
+    target.setDate(target.getDate() + j);
+    target.setHours(0, 0, 0, 0);
+    const isTomorrow = j === 1;
+    const dayLabel   = `${target.getDate()} ${MONTHS[target.getMonth()]}`;
+    if (isTomorrow) return `Demain · ${dayLabel}`;
+    return `Dans ${j} jours · ${dayLabel}`;
+  }
+
+  return horizon;
 }
 
-// ── Libellé du profil actif depuis user ─────────────────────
-function buildProfilLabel(user) {
-  if (!user) return '—';
-  const parts = [];
-  if (user.categories?.length) {
-    parts.push(...user.categories.map((c) => c));
-  }
-  if (user.specificites?.length) {
-    parts.push(...user.specificites.map((s) => s));
-  }
-  return parts.length ? parts.join('  ·  ') : (user.activite ?? '—');
+function buildProfilLabel(profile, showSpecs) {
+  if (!profile) return '—';
+  const items = showSpecs
+    ? (profile.specificites ?? [])
+    : (profile.categories   ?? []);
+  return items.length ? items.join(' · ') : (profile.role ?? '—');
 }
 
-// ── Sous-composant : une card accordion ─────────────────────
-function RecoCard({ reco, isUrgent, accentColor, accentLight, onDelete }) {
-  const [open, setOpen] = useState(false);
+function isUrgent(reco) { return reco.type === 'danger'; }
+
+function sortByDate(arr) {
+  return [...arr].sort((a, b) => {
+    const da = new Date(a.date ?? 0);
+    const db = new Date(b.date ?? 0);
+    return db - da;
+  });
+}
+
+// ── RecoCard ──────────────────────────────────────────────────────────────────
+function RecoCard({ reco, accentColor, accentLight, onDelete }) {
+  const [open,    setOpen]    = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  const borderColor = isUrgent ? '#c0392b' : accentColor;
-  const badgeBg     = isUrgent ? '#fdecea' : accentLight;
-  const badgeColor  = isUrgent ? '#c0392b' : accentColor;
-  const badgeLabel  = isUrgent ? '⚠ Urgent' : '✓ Conseil';
+  const urgent      = isUrgent(reco);
+  const borderColor = urgent ? '#c0392b' : reco.type === 'warning' ? '#e67e22' : accentColor;
+  const badgeBg     = urgent ? '#fdecea' : reco.type === 'warning' ? '#fef3e2' : accentLight;
+  const badgeColor  = urgent ? '#c0392b' : reco.type === 'warning' ? '#d35400' : accentColor;
+  const badgeLabel  = urgent ? '⚠ Urgent' : reco.type === 'warning' ? '⚡ Attention' : '✓ Conseil';
+
+  const dateLabel = horizonToDateLabel(reco.horizon);
 
   return (
-    <div
-      style={{
-        background:    'var(--pm-card, #ffffff)',
-        borderRadius:  14,
-        border:        '1px solid rgba(14,76,122,0.12)',
-        borderLeft:    `5px solid ${borderColor}`,
-        marginBottom:  12,
-        boxShadow:     '0 2px 8px rgba(10,26,74,0.07)',
-        overflow:      'hidden',
-        transition:    'box-shadow .2s',
-      }}
-    >
-      {/* En-tête cliquable */}
+    <div style={{
+      background:   'var(--pm-card,#ffffff)',
+      borderRadius: 14,
+      border:       '1px solid rgba(14,76,122,0.12)',
+      borderLeft:   `5px solid ${borderColor}`,
+      marginBottom: 10,
+      boxShadow:    '0 2px 8px rgba(10,26,74,0.06)',
+      overflow:     'hidden',
+    }}>
       <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onClick={() => setOpen((p) => !p)}
-        onKeyDown={(e) => e.key === 'Enter' && setOpen((p) => !p)}
+        role="button" tabIndex={0} aria-expanded={open}
+        onClick={() => setOpen(p => !p)}
+        onKeyDown={(e) => e.key === 'Enter' && setOpen(p => !p)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          padding:         '14px 18px',
-          display:         'flex',
-          alignItems:      'flex-start',
-          justifyContent:  'space-between',
-          cursor:          'pointer',
-          background:      hovered ? 'rgba(14,76,122,0.03)' : 'transparent',
-          transition:      'background .15s',
-          userSelect:      'none',
+          padding:        '13px 16px',
+          display:        'flex', alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          cursor:         'pointer',
+          background:     hovered ? 'rgba(14,76,122,0.025)' : 'transparent',
+          transition:     'background .15s', userSelect: 'none',
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Badge type */}
           <span style={{
-            fontSize:     11,
-            fontWeight:   700,
-            padding:      '3px 10px',
-            borderRadius: 20,
-            display:      'inline-block',
-            marginBottom: 6,
-            background:   badgeBg,
-            color:        badgeColor,
+            fontSize: 10.5, fontWeight: 700, padding: '3px 9px',
+            borderRadius: 20, display: 'inline-block', marginBottom: 6,
+            background: badgeBg, color: badgeColor,
           }}>
             {badgeLabel}
           </span>
 
-          {/* Titre */}
           <div style={{
-            fontSize:     14,
-            fontWeight:   700,
-            color:        'var(--pm-text, #0a1a4a)',
-            marginBottom: 3,
-            lineHeight:   1.35,
+            fontSize: 11.5, color: 'var(--pm-muted,#5a7a9a)',
+            marginBottom: 4, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
           }}>
-            {reco.titre ?? reco.title ?? reco.message ?? '—'}
+            {reco.culture && <span>{reco.culture}</span>}
+            {reco.culture && <span style={{ opacity: 0.4 }}>·</span>}
+            <span style={{
+              background: 'rgba(14,76,122,0.07)',
+              borderRadius: 6, padding: '1px 7px',
+              fontSize: 11, fontWeight: 700,
+              color: borderColor,
+            }}>
+              📅 {dateLabel}
+            </span>
           </div>
 
-          {/* Date */}
           <div style={{
-            fontSize:   12,
-            color:      'var(--pm-muted, #5a7a9a)',
+            fontSize: 13.5, fontWeight: 700,
+            color: 'var(--pm-text,#0a1a4a)', lineHeight: 1.35,
           }}>
-            {formatDate(reco.created_at ?? reco.date)}
+            {reco.titre ?? '—'}
           </div>
         </div>
 
-        {/* Chevron + bouton supprimer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 12, flexShrink: 0 }}>
-          {/* Supprimer unitaire */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12, flexShrink: 0 }}>
           <button
-            title="Supprimer cette recommandation"
+            title="Supprimer"
             onClick={(e) => { e.stopPropagation(); onDelete(reco.id); }}
             style={{
-              border:         'none',
-              background:     'none',
-              cursor:         'pointer',
-              color:          'rgba(192,57,43,0.5)',
-              fontSize:       14,
-              padding:        '2px 4px',
-              borderRadius:   6,
-              transition:     'color .15s, background .15s',
+              border: 'none', background: 'none', cursor: 'pointer',
+              color: 'rgba(192,57,43,0.4)', fontSize: 13,
+              padding: '2px 5px', borderRadius: 6, transition: 'all .15s',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color='#c0392b'; e.currentTarget.style.background='#fdecea'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color='rgba(192,57,43,0.5)'; e.currentTarget.style.background='none'; }}
-          >
-            <i className="fa-solid fa-trash-can" />
-          </button>
-
-          {/* Chevron */}
-          <i
-            className="fa-solid fa-chevron-down"
-            style={{
-              fontSize:   14,
-              color:      'var(--pm-muted, #5a7a9a)',
-              transition: 'transform .25s',
-              transform:  open ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          />
+            onMouseLeave={(e) => { e.currentTarget.style.color='rgba(192,57,43,0.4)'; e.currentTarget.style.background='none'; }}
+          >🗑</button>
+          <span style={{
+            fontSize: 11, color: 'var(--pm-muted,#5a7a9a)',
+            display: 'inline-block',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform .25s',
+          }}>▼</span>
         </div>
       </div>
 
-      {/* Corps déroulant */}
       {open && (
-        <div
-          style={{
-            padding:    '0 18px 16px',
-            fontSize:   13.5,
-            color:      'var(--pm-muted, #5a7a9a)',
-            lineHeight: 1.65,
-            animation:  'fadeUp .2s ease',
-            borderTop:  '1px solid rgba(14,76,122,0.07)',
-            paddingTop: 12,
-          }}
-        >
-          {reco.contenu ?? reco.content ?? reco.description ?? '(Aucun détail disponible)'}
+        <div style={{
+          padding: '10px 16px 14px',
+          fontSize: 13, color: 'var(--pm-muted,#5a7a9a)',
+          lineHeight: 1.7, borderTop: '1px solid rgba(14,76,122,0.07)',
+        }}>
+          {reco.detail ?? '(Aucun détail disponible)'}
         </div>
       )}
     </div>
   );
 }
 
-// ── Composant principal ───────────────────────────────────────
-export default function RecommendationsTab({ accentColor = '#1a7a3a', accentLight = '#e8f5ec' }) {
-  const { user } = useContext(AuthContext);
+// ── Composant principal ───────────────────────────────────────────────────────
+export default function RecommendationsTab({
+  accentColor = '#1a7a3a',
+  accentLight = '#e8f5ec',
+  onRecoCount = null,
+  showSpecs   = true,
+}) {
+  const [profile,  setProfile]  = useState(null);
+  const [recos,    setRecos]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // ── States ─────────────────────────────────────────────────
-  const [recos,      setRecos]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
-  const [deleting,   setDeleting]   = useState(false); // suppression globale en cours
-
-  // ── Chargement initial ─────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-    async function fetchRecos() {
-      setLoading(true);
-      setError(null);
+    async function load() {
+      setLoading(true); setError(null);
       try {
-        const data = await getRecommendations();
-        if (!cancelled) setRecos(Array.isArray(data) ? data : (data?.recommendations ?? []));
+        const [profileRes, recosRes] = await Promise.all([
+          getProfile(),
+          getRecommendations(),
+        ]);
+        if (!cancelled) {
+          setProfile(profileRes?.data ?? profileRes);
+          const raw  = recosRes?.data ?? recosRes;
+          const list = Array.isArray(raw) ? raw : (raw?.recommendations ?? []);
+          setRecos(list);
+          // Informe le parent du nombre initial (pour le badge sur les autres onglets).
+          // FarmerDashboard ignore ce count si on est déjà sur cet onglet.
+          if (onRecoCount) onRecoCount(list.length);
+        }
       } catch (err) {
         if (!cancelled) setError(err?.response?.data?.detail ?? 'Erreur de chargement');
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchRecos();
+    load();
     return () => { cancelled = true; };
   }, []);
 
-  // ── Suppression d'une reco ─────────────────────────────────
   async function handleDelete(id) {
-    try {
-      await deleteRecommendation(id);
-      setRecos((prev) => prev.filter((r) => r.id !== id));
-    } catch {
-      // Silencieux — la reco reste visible si la suppression échoue
-    }
+    setRecos(prev => {
+      const next = prev.filter(r => r.id !== id);
+      if (onRecoCount) onRecoCount(next.length);
+      return next;
+    });
+    try { await deleteRecommendation(id); } catch {}
   }
 
-  // ── Suppression globale ────────────────────────────────────
   async function handleDeleteAll() {
     if (!window.confirm('Supprimer toutes les recommandations ?')) return;
     setDeleting(true);
     try {
       await deleteAllRecommendations();
       setRecos([]);
-    } catch (err) {
+      if (onRecoCount) onRecoCount(0);
+    } catch {
       setError('Impossible de supprimer toutes les recommandations');
     } finally {
       setDeleting(false);
     }
   }
 
-  // ── Séparation urgentes / non urgentes ─────────────────────
-  const urgentes    = recos.filter((r) => r.urgente ?? r.is_urgent ?? r.type === 'urgent');
-  const nonUrgentes = recos.filter((r) => !(r.urgente ?? r.is_urgent ?? r.type === 'urgent'));
+  const urgentes = sortByDate(recos.filter(r =>  isUrgent(r)));
+  const conseils = sortByDate(recos.filter(r => !isUrgent(r)));
 
-  // ── Profil actif ───────────────────────────────────────────
-  const profilLabel = buildProfilLabel(user);
-
-  // ── Styles ─────────────────────────────────────────────────
-  const border  = 'rgba(14,76,122,0.12)';
-  const cardBg  = 'var(--pm-card, #ffffff)';
-  const textPri = 'var(--pm-text, #0a1a4a)';
-  const textMut = 'var(--pm-muted, #5a7a9a)';
+  const profilLabel = buildProfilLabel(profile, showSpecs);
+  const border      = 'rgba(14,76,122,0.12)';
 
   const S = {
-    root: {
-      padding:    24,
-      flex:       1,
-      overflowY:  'auto',
-      fontFamily: 'Nunito, sans-serif',
-    },
-
-    // Barre du haut
-    topbar: {
-      display:        'flex',
-      alignItems:     'center',
-      justifyContent: 'space-between',
-      marginBottom:   22,
-      flexWrap:       'wrap',
-      gap:            12,
-    },
-    profilLine: {
-      fontSize:   15,
-      color:      textMut,
-      fontWeight: 600,
-    },
-    profilValue: {
-      color:      textPri,
-      fontWeight: 700,
-    },
-
-    // Bouton "Tout supprimer"
+    root:    { padding: '20px 24px', flex: 1, overflowY: 'auto', fontFamily: 'DM Sans, sans-serif' },
+    topbar:  { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
+    profilLine:  { fontSize: 13.5, color: 'var(--pm-muted,#5a7a9a)', fontWeight: 600 },
+    profilValue: { color: 'var(--pm-text,#0a1a4a)', fontWeight: 700 },
     delBtn: {
-      display:      'flex',
-      alignItems:   'center',
-      gap:          7,
-      padding:      '9px 18px',
-      border:       '1.5px solid #c0392b',
-      borderRadius: 9,
-      background:   'none',
-      color:        '#c0392b',
-      fontSize:     13,
-      fontWeight:   700,
-      cursor:       'pointer',
-      fontFamily:   'Nunito, sans-serif',
-      transition:   'background .2s',
-      opacity:      deleting ? 0.6 : 1,
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '8px 16px', border: '1.5px solid #c0392b',
+      borderRadius: 9, background: 'none', color: '#c0392b',
+      fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+      fontFamily: 'DM Sans, sans-serif', transition: 'background .2s',
+      opacity: deleting ? 0.6 : 1,
     },
-
-    // Titres de section
     sectionTitle: (color) => ({
-      fontFamily:   'Syne, sans-serif',
-      fontSize:     15,
-      fontWeight:   700,
-      marginBottom: 12,
-      display:      'flex',
-      alignItems:   'center',
-      gap:          8,
-      color,
+      fontSize: 12, fontWeight: 800, marginBottom: 10,
+      display: 'flex', alignItems: 'center', gap: 7, color,
+      textTransform: 'uppercase', letterSpacing: '.5px',
     }),
-
-    // Séparateur entre sections
-    sep: {
-      marginTop: 20,
-      marginBottom: 6,
-    },
-
-    // État vide
     emptyWrap: {
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      padding:        '60px 24px',
-      color:          textMut,
-      gap:            10,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      padding: '60px 24px', color: 'var(--pm-muted,#5a7a9a)', gap: 10,
     },
-    emptyIco: {
-      fontSize:     52,
-      opacity:      .35,
-      marginBottom: 6,
-    },
-    emptyTxt: {
-      fontSize:   15,
-      fontWeight: 700,
-    },
-    emptySub: {
-      fontSize:   13,
-      textAlign:  'center',
-      maxWidth:   320,
-      lineHeight: 1.55,
-    },
-
-    // Loading / Error
-    loadingWrap: {
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      justifyContent: 'center',
-      gap:            14,
-      padding:        60,
-      color:          textMut,
-      fontSize:       14,
-      fontWeight:     600,
+    loadWrap: {
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: 14, padding: 60,
+      color: 'var(--pm-muted,#5a7a9a)', fontSize: 14, fontWeight: 600,
     },
     spinner: {
-      width:        38,
-      height:       38,
-      border:       `4px solid ${border}`,
-      borderTop:    `4px solid ${accentColor}`,
-      borderRadius: '50%',
-      animation:    'spin 0.9s linear infinite',
+      width: 36, height: 36,
+      border: `4px solid ${border}`, borderTop: `4px solid ${accentColor}`,
+      borderRadius: '50%', animation: 'spin 0.9s linear infinite',
     },
     errorBox: {
-      padding:      '16px 20px',
-      background:   '#fdecea',
-      borderRadius: 10,
-      border:       '1px solid #c0392b',
-      color:        '#c0392b',
-      fontSize:     13.5,
-      fontWeight:   600,
-      marginBottom: 16,
+      padding: '14px 18px', background: '#fdecea', borderRadius: 10,
+      border: '1px solid #c0392b', color: '#c0392b',
+      fontSize: 13, fontWeight: 600, marginBottom: 14,
     },
   };
 
-  // ── Rendu ──────────────────────────────────────────────────
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
       <div style={S.root}>
 
-        {/* ── Topbar ─────────────────────────────────────── */}
         <div style={S.topbar}>
           <div style={S.profilLine}>
             Profil actif :&nbsp;
             <span style={S.profilValue}>{profilLabel}</span>
           </div>
-
           {recos.length > 0 && (
             <button
-              style={S.delBtn}
-              disabled={deleting}
-              onClick={handleDeleteAll}
+              style={S.delBtn} disabled={deleting} onClick={handleDeleteAll}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#fdecea'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
             >
-              <i className="fa-solid fa-trash" />
-              {deleting ? 'Suppression…' : 'Tout supprimer'}
+              🗑 {deleting ? 'Suppression…' : 'Tout supprimer'}
             </button>
           )}
         </div>
 
-        {/* ── Erreur ─────────────────────────────────────── */}
-        {error && (
-          <div style={S.errorBox}>
-            <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: 8 }} />
-            {error}
-          </div>
-        )}
+        {error && <div style={S.errorBox}>⚠ {error}</div>}
 
-        {/* ── Chargement ─────────────────────────────────── */}
         {loading ? (
-          <div style={S.loadingWrap}>
-            <div style={S.spinner} />
+          <div style={S.loadWrap}>
+            <div style={S.spinner}/>
             <span>Chargement des recommandations…</span>
           </div>
 
         ) : recos.length === 0 ? (
-
-          /* ── État vide ─────────────────────────────────── */
           <div style={S.emptyWrap}>
-            <div style={S.emptyIco}>📭</div>
-            <div style={S.emptyTxt}>Aucune recommandation</div>
-            <div style={S.emptySub}>
+            <div style={{ fontSize: 48, opacity: .3 }}>📭</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>Aucune recommandation</div>
+            <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 300, lineHeight: 1.6 }}>
               Les recommandations apparaîtront ici selon vos cultures et les conditions météo.
             </div>
           </div>
 
         ) : (
           <>
-            {/* ── Section URGENTES ───────────────────────── */}
             {urgentes.length > 0 && (
-              <>
+              <div style={{ marginBottom: 24 }}>
                 <div style={S.sectionTitle('#c0392b')}>
-                  <i className="fa-solid fa-triangle-exclamation" />
-                  Urgentes — Action immédiate requise
+                  ⚠ Urgentes — Action immédiate requise
+                  <span style={{
+                    marginLeft: 4, background: '#fdecea', color: '#c0392b',
+                    borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 800,
+                  }}>
+                    {urgentes.length}
+                  </span>
                 </div>
-                {urgentes.map((r) => (
-                  <RecoCard
-                    key={r.id}
-                    reco={r}
-                    isUrgent
-                    accentColor={accentColor}
-                    accentLight={accentLight}
+                {urgentes.map((r, i) => (
+                  <RecoCard key={r.id ?? i} reco={r}
+                    accentColor={accentColor} accentLight={accentLight}
                     onDelete={handleDelete}
                   />
                 ))}
-              </>
+              </div>
             )}
 
-            {/* ── Section NON URGENTES ───────────────────── */}
-            {nonUrgentes.length > 0 && (
-              <>
-                <div style={{ ...S.sectionTitle(accentColor), ...(urgentes.length > 0 ? S.sep : {}) }}>
-                  <i className="fa-solid fa-circle-check" />
-                  Non urgentes — Optimisation
+            {conseils.length > 0 && (
+              <div>
+                <div style={S.sectionTitle(accentColor)}>
+                  ✓ Conseils & optimisation
+                  <span style={{
+                    marginLeft: 4, background: accentLight, color: accentColor,
+                    borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 800,
+                  }}>
+                    {conseils.length}
+                  </span>
                 </div>
-                {nonUrgentes.map((r) => (
-                  <RecoCard
-                    key={r.id}
-                    reco={r}
-                    isUrgent={false}
-                    accentColor={accentColor}
-                    accentLight={accentLight}
+                {conseils.map((r, i) => (
+                  <RecoCard key={r.id ?? i} reco={r}
+                    accentColor={accentColor} accentLight={accentLight}
                     onDelete={handleDelete}
                   />
                 ))}
-              </>
+              </div>
             )}
           </>
         )}

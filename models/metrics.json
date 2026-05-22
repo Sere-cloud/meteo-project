@@ -1,148 +1,148 @@
 {
   "H3": {
     "temperature": {
-      "MAE": 0.0313,
-      "RMSE": 0.0436
+      "MAE": 0.776,
+      "RMSE": 1.0972
     },
     "humidite": {
-      "MAE": 0.0692,
-      "RMSE": 0.0996
+      "MAE": 4.4087,
+      "RMSE": 6.4906
     },
     "precipitation": {
-      "MAE": 0.0075,
-      "RMSE": 0.0217
+      "MAE": 0.262,
+      "RMSE": 0.8069
     },
     "vent": {
-      "MAE": 0.0525,
-      "RMSE": 0.0678
+      "MAE": 2.0975,
+      "RMSE": 2.7158
     }
   },
   "H6": {
     "temperature": {
-      "MAE": 0.033,
-      "RMSE": 0.0458
+      "MAE": 0.9987,
+      "RMSE": 1.3781
     },
     "humidite": {
-      "MAE": 0.0733,
-      "RMSE": 0.1054
+      "MAE": 5.712,
+      "RMSE": 8.1856
     },
     "precipitation": {
-      "MAE": 0.0075,
-      "RMSE": 0.0227
+      "MAE": 0.2777,
+      "RMSE": 0.8451
     },
     "vent": {
-      "MAE": 0.0532,
-      "RMSE": 0.0683
+      "MAE": 2.3312,
+      "RMSE": 2.9869
     }
   },
   "H12": {
     "temperature": {
-      "MAE": 0.0344,
-      "RMSE": 0.0476
+      "MAE": 1.1407,
+      "RMSE": 1.5459
     },
     "humidite": {
-      "MAE": 0.0767,
-      "RMSE": 0.1095
+      "MAE": 6.5617,
+      "RMSE": 9.2592
     },
     "precipitation": {
-      "MAE": 0.0076,
-      "RMSE": 0.0227
+      "MAE": 0.2862,
+      "RMSE": 0.8762
     },
     "vent": {
-      "MAE": 0.054,
-      "RMSE": 0.0692
+      "MAE": 2.4287,
+      "RMSE": 3.0939
     }
   },
   "H24": {
     "temperature": {
-      "MAE": 0.0365,
-      "RMSE": 0.0502
+      "MAE": 0.9635,
+      "RMSE": 1.356
     },
     "humidite": {
-      "MAE": 0.0816,
-      "RMSE": 0.1161
+      "MAE": 5.7414,
+      "RMSE": 8.3307
     },
     "precipitation": {
-      "MAE": 0.0077,
-      "RMSE": 0.0229
+      "MAE": 0.2856,
+      "RMSE": 0.8595
     },
     "vent": {
-      "MAE": 0.0544,
-      "RMSE": 0.0697
+      "MAE": 2.1643,
+      "RMSE": 2.8084
     }
   },
   "J2": {
     "temperature": {
-      "MAE": 0.0326,
-      "RMSE": 0.0459
+      "MAE": 0.6721,
+      "RMSE": 0.8953
     },
     "humidite": {
-      "MAE": 0.0816,
-      "RMSE": 0.1136
+      "MAE": 4.3361,
+      "RMSE": 6.0797
     },
     "precipitation": {
-      "MAE": 0.003,
-      "RMSE": 0.0042
+      "MAE": 4.3988,
+      "RMSE": 8.8113
     },
     "vent": {
-      "MAE": 0.0266,
-      "RMSE": 0.0341
+      "MAE": 1.1146,
+      "RMSE": 1.489
     }
   },
   "J3": {
     "temperature": {
-      "MAE": 0.0442,
-      "RMSE": 0.0549
+      "MAE": 0.7084,
+      "RMSE": 0.9394
     },
     "humidite": {
-      "MAE": 0.1082,
-      "RMSE": 0.1735
+      "MAE": 4.45,
+      "RMSE": 6.2302
     },
     "precipitation": {
-      "MAE": 0.0037,
-      "RMSE": 0.0051
+      "MAE": 4.4269,
+      "RMSE": 8.9702
     },
     "vent": {
-      "MAE": 0.0204,
-      "RMSE": 0.0282
+      "MAE": 1.1572,
+      "RMSE": 1.5436
     }
   },
   "J4": {
     "temperature": {
-      "MAE": 0.0257,
-      "RMSE": 0.0313
+      "MAE": 0.7271,
+      "RMSE": 0.9721
     },
     "humidite": {
-      "MAE": 0.0387,
-      "RMSE": 0.054
+      "MAE": 4.6366,
+      "RMSE": 6.5735
     },
     "precipitation": {
-      "MAE": 0.0039,
-      "RMSE": 0.0048
+      "MAE": 4.2921,
+      "RMSE": 8.7008
     },
     "vent": {
-      "MAE": 0.0204,
-      "RMSE": 0.0296
+      "MAE": 1.1678,
+      "RMSE": 1.555
     }
   },
   "J5": {
     "temperature": {
-      "MAE": 0.0425,
-      "RMSE": 0.0665
+      "MAE": 0.7582,
+      "RMSE": 1.0079
     },
     "humidite": {
-      "MAE": 0.0981,
-      "RMSE": 0.1353
+      "MAE": 4.8909,
+      "RMSE": 6.8514
     },
     "precipitation": {
-      "MAE": 0.0073,
-      "RMSE": 0.0121
+      "MAE": 4.4112,
+      "RMSE": 9.1155
     },
     "vent": {
-      "MAE": 0.0186,
-      "RMSE": 0.026
+      "MAE": 1.1616,
+      "RMSE": 1.5377
     }
   },
-  "date_entrainement": "2026-04-24 12:29",
-  "version": "1.0"
+  "date_entrainement": "2026-05-20 06:28",
+  "version": "2.0"
 }

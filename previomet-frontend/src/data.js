@@ -47,7 +47,7 @@ export const SPECIFICITES = {
 
   fruits_tropicaux: [
     'Banane plantain', 'Banane douce', 'Ananas', 'Mangue',
-    'Papaye', 'Avocat', 'Goyave', 'Agrumes',
+    'Papaye', 'Avocat', 'Goyave', 'Agrumes (citron, orange, mandarine, pamplemousse...)',
   ],
 
   maraichage: [

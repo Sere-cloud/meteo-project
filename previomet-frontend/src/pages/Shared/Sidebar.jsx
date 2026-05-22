@@ -1,380 +1,200 @@
-// ============================================================
-// Sidebar.jsx
-// Composant sidebar réutilisable — Agriculteur & Logisticien.
-//
-// Props reçues :
-//   navItems   {Array}    — liste d'onglets depuis navigation.js
-//                           [{ key, label, icon }]
-//   activeTab  {string}   — clé de l'onglet actuellement actif
-//   onTabChange {Function} — appelée avec la clé du nouvel onglet
-//   isDark     {boolean}  — état du mode sombre
-//   onToggleDark {Function} — bascule le mode sombre
-//   onLogout   {Function} — gère la déconnexion
-//
-// Ce composant ne connaît pas le rôle de l'utilisateur.
-// Il reçoit uniquement ce dont il a besoin via les props.
-// ============================================================
+// src/pages/Shared/Sidebar.jsx
 
-import { useState } from 'react';
-import { COLORS, SIDEBAR, FONTS } from '../../constants/theme';
+import { useState }               from 'react';
+import { SIDEBAR, FONTS }         from '../../constants/theme';
+import logoWhite                  from '../../assets/atmospheric-conditions white.png';
+import exitIcon                   from '../../assets/exit.png';
 
-// -------------------------------------------------------
-// Sous-composant : Logo SVG PrevioMet
-// Le SVG nuage + signal est défini une seule fois ici.
-// -------------------------------------------------------
-function LogoSVG() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 40 40"
-      fill="none"
-      style={{ flexShrink: 0 }}
-    >
-      <ellipse cx="20" cy="26" rx="16" ry="10"
-        fill="rgba(255,255,255,0.25)" stroke="white" strokeWidth="2" />
-      <ellipse cx="14" cy="20" rx="11" ry="8"
-        fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="2" />
-      <ellipse cx="26" cy="19" rx="10" ry="7"
-        fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="2" />
-      <path
-        d="M8 26 Q13 17 20 22 Q26 14 33 19"
-        stroke="#7dd3fc" strokeWidth="2.2"
-        strokeLinecap="round" fill="none"
-      />
-      <circle cx="33" cy="19" r="3" fill="#7dd3fc" />
-    </svg>
-  );
-}
-
-// -------------------------------------------------------
-// Composant principal : Sidebar
-// -------------------------------------------------------
 export default function Sidebar({
   navItems,
   activeTab,
   onTabChange,
-  isDark,
-  onToggleDark,
   onLogout,
+  recoCount        = 0,
+  sidebarGradient  = 'linear-gradient(180deg, #0a1a4a 0%, #0e4f7a 55%, #0e7c8a 100%)',
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen,            setIsOpen]            = useState(true);
+  const [hoveredKey,        setHoveredKey]        = useState(null);
+  const [hoveredDisconnect, setHoveredDisconnect] = useState(false);
 
-  // Largeur courante selon l'état ouvert/fermé
   const sidebarWidth = isOpen ? SIDEBAR.widthOpen : SIDEBAR.widthClosed;
 
-  // -------------------------------------------------------
-  // STYLES
-  // Définis en objets JS pour garder tout dans un seul fichier
-  // et pouvoir calculer dynamiquement (ex: width selon isOpen).
-  // -------------------------------------------------------
-  const styles = {
+  const S = {
     sidebar: {
-      width: sidebarWidth,
-      minWidth: sidebarWidth,
-      background: COLORS.sidebarBg,
-      display: 'flex',
-      flexDirection: 'column',
+      width: sidebarWidth, minWidth: sidebarWidth,
+      background: sidebarGradient,
+      display: 'flex', flexDirection: 'column',
       transition: `width ${SIDEBAR.transitionMs}ms cubic-bezier(0.4,0,0.2,1),
                    min-width ${SIDEBAR.transitionMs}ms cubic-bezier(0.4,0,0.2,1)`,
-      overflow: 'hidden',
-      position: 'relative',
-      zIndex: 20,
-      flexShrink: 0,
+      overflow: 'hidden', position: 'relative', zIndex: 20, flexShrink: 0,
     },
-
-    // En-tête : hamburger + logo
     header: {
-      padding: '18px 14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      borderBottom: '1px solid rgba(255,255,255,0.1)',
-      minHeight: 70,
-      flexShrink: 0,
+      padding: '18px 6px', display: 'flex', alignItems: 'center', gap: 6,
+      borderBottom: '1px solid rgba(255,255,255,0.12)', minHeight: 70, flexShrink: 0,
     },
-
     hamburger: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
-      background: 'rgba(255,255,255,0.12)',
-      border: '1px solid rgba(255,255,255,0.18)',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white',
-      fontSize: 17,
-      flexShrink: 0,
-      transition: 'background 0.2s',
+      width: 50, height: 50, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0, transition: 'background 0.2s',
+      background: 'none', border: 'none', padding: 0,
     },
-
-    // Logo texte — disparaît quand la sidebar est fermée
     logoWrap: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9,
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
+      display: 'flex', alignItems: 'center', gap: 9,
+      whiteSpace: 'nowrap', overflow: 'hidden',
       opacity: isOpen ? 1 : 0,
       pointerEvents: isOpen ? 'auto' : 'none',
       transition: 'opacity 0.2s',
     },
-
     logoText: {
-      fontFamily: FONTS.title,
-      fontWeight: 800,
-      fontSize: 19,
-      color: 'white',
-      letterSpacing: '-0.3px',
+      fontFamily: FONTS.title, fontWeight: 800,
+      fontSize: 26, color: 'white', letterSpacing: '0.8px',
     },
-
-    // Zone de navigation centrale — scrollable si beaucoup d'onglets
     navZone: {
-      flex: 1,
-      padding: '10px 8px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 2,
-      overflowY: 'auto',
-      overflowX: 'hidden',
+      flex: 1, padding: '10px 8px',
+      display: 'flex', flexDirection: 'column', gap: 6,
+      overflowY: 'auto', overflowX: 'hidden',
     },
-
-    // Un item de navigation
-    navItem: (isActive) => ({
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '11px 12px',
-      borderRadius: 10,
-      cursor: 'pointer',
-      whiteSpace: 'nowrap',
-      color: isActive ? 'white' : 'rgba(255,255,255,0.7)',
-      fontFamily: FONTS.body,
-      fontSize: 14,
+    navItem: (isActive, isHovered) => ({
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '11px 12px', borderRadius: 10, cursor: 'pointer',
+      whiteSpace: 'nowrap', fontFamily: FONTS.body, fontSize: 14,
       fontWeight: isActive ? 700 : 500,
+      color: 'white',
       background: isActive
-        ? 'rgba(255,255,255,0.18)'
-        : 'transparent',
-      transition: 'all 0.2s',
-      overflow: 'hidden',
-      userSelect: 'none',
-    }),
-
-    navIcon: {
-      fontSize: 17,
-      flexShrink: 0,
-      width: 20,
-      textAlign: 'center',
-    },
-
-    navLabel: {
-      opacity: isOpen ? 1 : 0,
-      transition: 'opacity 0.15s',
-      pointerEvents: isOpen ? 'auto' : 'none',
-    },
-
-    // Séparateur entre la nav et le pied de sidebar
-    footer: {
-      padding: 8,
-      borderTop: '1px solid rgba(255,255,255,0.1)',
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 2,
-    },
-
-    // Toggle mode sombre — style interrupteur/torche ON/OFF
-    modeRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '10px 12px',
-      borderRadius: 10,
-      cursor: 'pointer',
-      color: 'rgba(255,255,255,0.75)',
-      fontFamily: FONTS.body,
-      fontSize: 14,
-      fontWeight: 500,
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      transition: 'background 0.2s',
-      userSelect: 'none',
-    },
-
-    // Le switch visuel (pastille qui glisse)
-    switchTrack: {
-      width: 36,
-      height: 20,
-      borderRadius: 10,
-      background: isDark
-        ? 'rgba(125,211,252,0.5)'
-        : 'rgba(255,255,255,0.2)',
+        ? 'rgba(255,255,255,0.22)'
+        : isHovered ? 'rgba(255,255,255,0.13)' : 'transparent',
+      opacity: isActive ? 1 : isHovered ? 1 : 0.85,
+      transition: 'all 0.2s', overflow: 'hidden', userSelect: 'none',
       position: 'relative',
-      flexShrink: 0,
-      transition: 'background 0.2s',
+      boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+    }),
+    navIconWrap: { position: 'relative', flexShrink: 0, width: 22, textAlign: 'center' },
+    // Icônes images : filtrées en blanc pour s'harmoniser avec tous les fonds de sidebar
+    navIconImg: {
+      width: 20, height: 20, objectFit: 'contain',
+      filter: 'brightness(0) invert(1)',
+      display: 'block', margin: '0 auto',
     },
-
-    switchThumb: {
-      position: 'absolute',
-      top: 3,
-      left: isDark ? 19 : 3,
-      width: 14,
-      height: 14,
-      borderRadius: '50%',
-      background: 'white',
-      transition: 'left 0.2s',
+    navIconFA: { fontSize: 17, color: 'white', width: 22, textAlign: 'center' },
+    navLabel: {
+      opacity: isOpen ? 1 : 0, transition: 'opacity 0.15s',
+      pointerEvents: isOpen ? 'auto' : 'none',
+      flex: 1, color: 'white',
     },
-
-    modeLabel: {
-      opacity: isOpen ? 1 : 0,
-      transition: 'opacity 0.15s',
-      flex: 1,
+    footer: {
+      padding: '6px 8px 10px',
+      borderTop: '1px solid rgba(255,255,255,0.12)',
+      display: 'flex', flexDirection: 'column', gap: 2,
     },
-
-    // Bouton déconnexion
-    disconnectItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '11px 12px',
-      borderRadius: 10,
-      cursor: 'pointer',
-      whiteSpace: 'nowrap',
-      color: 'rgba(255,130,130,0.85)',
-      fontFamily: FONTS.body,
-      fontSize: 14,
-      fontWeight: 500,
-      transition: 'all 0.2s',
-      overflow: 'hidden',
-      userSelect: 'none',
+    // Déconnexion : blanc de base, fond rouge vif + ombre au hover
+    disconnectItem: (hovered) => ({
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '11px 12px', borderRadius: 10, cursor: 'pointer',
+      whiteSpace: 'nowrap', fontFamily: FONTS.body, fontSize: 14, fontWeight: 600,
+      transition: 'all 0.2s', overflow: 'hidden', userSelect: 'none',
+      background: hovered ? '#e74c3c' : 'rgba(255,255,255,0.07)',
+      color: 'white',
+      border: hovered ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
+      boxShadow: hovered ? '0 2px 12px rgba(231,76,60,0.4)' : 'none',
+    }),
+    disconnectIconImg: {
+      width: 20, height: 20, objectFit: 'contain',
+      filter: 'brightness(0) invert(1)',
+      flexShrink: 0, display: 'block',
     },
   };
 
-  // -------------------------------------------------------
-  // Gestion du hover sur les nav items (état local)
-  // -------------------------------------------------------
-  const [hoveredKey, setHoveredKey] = useState(null);
-  const [hoveredDisconnect, setHoveredDisconnect] = useState(false);
-  const [hoveredMode, setHoveredMode] = useState(false);
-
   return (
-    <aside style={styles.sidebar}>
+    <aside style={S.sidebar}>
 
-      {/* ── En-tête : hamburger + logo ── */}
-      <div style={styles.header}>
+      {/* ── En-tête / Hamburger ── */}
+      <div style={S.header}>
         <button
-          style={styles.hamburger}
-          onClick={() => setIsOpen((prev) => !prev)}
+          style={S.hamburger}
+          onClick={() => setIsOpen(p => !p)}
           aria-label={isOpen ? 'Fermer la sidebar' : 'Ouvrir la sidebar'}
-          title={isOpen ? 'Réduire' : 'Agrandir'}
         >
-          <i className={`fa-solid ${isOpen ? 'fa-bars' : 'fa-bars'}`} />
+          <img src={logoWhite} alt="PrevioMet"
+            style={{ width: 32, height: 32, objectFit: 'contain', display: 'block' }}
+          />
         </button>
-
-        <div style={styles.logoWrap}>
-          <LogoSVG />
-          <span style={styles.logoText}>PrevioMet</span>
+        <div style={S.logoWrap}>
+          <span style={S.logoText}>PrevioMet</span>
         </div>
       </div>
 
-      {/* ── Navigation principale ── */}
-      <nav style={styles.navZone}>
+      {/* ── Navigation ── */}
+      <nav style={S.navZone}>
         {navItems.map((item) => {
-          const isActive = item.key === activeTab;
+          const isActive  = item.key === activeTab;
           const isHovered = hoveredKey === item.key;
+          const showBadge = item.key === 'recommandations' && recoCount > 0;
 
           return (
             <div
               key={item.key}
-              style={{
-                ...styles.navItem(isActive),
-                // Hover uniquement si non actif
-                background: isActive
-                  ? 'rgba(255,255,255,0.18)'
-                  : isHovered
-                  ? 'rgba(255,255,255,0.12)'
-                  : 'transparent',
-                color: isActive || isHovered ? 'white' : 'rgba(255,255,255,0.7)',
-              }}
+              style={S.navItem(isActive, isHovered)}
               onClick={() => onTabChange(item.key)}
               onMouseEnter={() => setHoveredKey(item.key)}
               onMouseLeave={() => setHoveredKey(null)}
-              role="button"
-              tabIndex={0}
+              role="button" tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && onTabChange(item.key)}
               aria-current={isActive ? 'page' : undefined}
             >
-              <i className={item.icon} style={styles.navIcon} />
-              <span style={styles.navLabel}>{item.label}</span>
+              {/* ── Icône : image PNG si disponible, sinon FontAwesome ── */}
+              <div style={S.navIconWrap}>
+                {item.iconImg ? (
+                  <img src={item.iconImg} alt="" style={S.navIconImg} aria-hidden="true" />
+                ) : (
+                  <i className={item.icon} style={S.navIconFA} aria-hidden="true" />
+                )}
+                {/* Badge rouge */}
+                {showBadge && (
+                  <span style={{
+                    position: 'absolute', top: -3, right: -5,
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: '#e74c3c',
+                    border: '1.5px solid rgba(0,0,0,0.25)',
+                    display: 'block',
+                  }} />
+                )}
+              </div>
+
+              {/* ── Label + compteur badge ── */}
+              <span style={S.navLabel}>
+                {item.label}
+                {showBadge && isOpen && (
+                  <span style={{
+                    marginLeft: 8, fontSize: 10, fontWeight: 800,
+                    background: '#e74c3c', color: 'white',
+                    borderRadius: 20, padding: '1px 6px',
+                    verticalAlign: 'middle', lineHeight: 1.4,
+                  }}>
+                    {recoCount}
+                  </span>
+                )}
+              </span>
             </div>
           );
         })}
       </nav>
 
-      {/* ── Pied de sidebar : mode + déconnexion ── */}
-      <div style={styles.footer}>
-
-        {/* Toggle mode clair / sombre */}
+      {/* ── Pied : déconnexion ── */}
+      <div style={S.footer}>
         <div
-          style={{
-            ...styles.modeRow,
-            background: hoveredMode
-              ? 'rgba(255,255,255,0.08)'
-              : 'transparent',
-          }}
-          onClick={onToggleDark}
-          onMouseEnter={() => setHoveredMode(true)}
-          onMouseLeave={() => setHoveredMode(false)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && onToggleDark()}
-          aria-label={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
-        >
-          {/* Icône soleil / lune */}
-          <i
-            className={`fa-solid ${isDark ? 'fa-moon' : 'fa-sun'}`}
-            style={{ ...styles.navIcon, color: isDark ? '#7dd3fc' : '#fcd34d' }}
-          />
-
-          {/* Label + switch visuel */}
-          <span style={styles.modeLabel}>
-            {isDark ? 'Mode sombre' : 'Mode clair'}
-          </span>
-
-          {/* Switch interrupteur — visible uniquement si sidebar ouverte */}
-          {isOpen && (
-            <div style={styles.switchTrack}>
-              <div style={styles.switchThumb} />
-            </div>
-          )}
-        </div>
-
-        {/* Bouton déconnexion */}
-        <div
-          style={{
-            ...styles.disconnectItem,
-            background: hoveredDisconnect
-              ? 'rgba(255,80,80,0.15)'
-              : 'transparent',
-            color: hoveredDisconnect
-              ? '#ff9090'
-              : 'rgba(255,130,130,0.85)',
-          }}
+          style={S.disconnectItem(hoveredDisconnect)}
           onClick={onLogout}
           onMouseEnter={() => setHoveredDisconnect(true)}
           onMouseLeave={() => setHoveredDisconnect(false)}
-          role="button"
-          tabIndex={0}
+          role="button" tabIndex={0}
           onKeyDown={(e) => e.key === 'Enter' && onLogout()}
           aria-label="Se déconnecter"
         >
-          <i
-            className="fa-solid fa-right-from-bracket"
-            style={styles.navIcon}
-          />
-          <span style={styles.navLabel}>Déconnexion</span>
+          {/* Icône exit.png — filtrée en blanc */}
+          <img src={exitIcon} alt="" style={S.disconnectIconImg} aria-hidden="true" />
+          <span style={{ ...S.navLabel, opacity: isOpen ? 1 : 0 }}>
+            Déconnexion
+          </span>
         </div>
       </div>
 

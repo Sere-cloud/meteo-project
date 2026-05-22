@@ -1,9 +1,22 @@
-from ml.predictor import predire
-from backend.recommendations import generer_toutes_recommandations
+import requests
 
-predictions = predire(4.0511, 9.7679)
-cultures = ['cacao', 'tomate', 'transport_perissables']
-recs = generer_toutes_recommandations(predictions, cultures)
+url = "https://api.open-meteo.com/v1/forecast"
+params = {
+    "latitude": 4.0511,
+    "longitude": 9.7679,
+    "hourly": "temperature_2m",
+    "forecast_days": 1
+}
 
-for r in recs:
-    print(f"[{r['horizon']}] {r['type'].upper()} — {r['culture']} : {r['titre']}")
+try:
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    print("✅ Connexion OK")
+    print(f"Nombre d'heures reçues : {len(data['hourly']['temperature_2m'])}")
+except requests.exceptions.ConnectionError as e:
+    print(f"❌ Erreur réseau (DNS / connexion) : {e}")
+except requests.exceptions.Timeout:
+    print("❌ Timeout — Open-Meteo met trop de temps à répondre")
+except Exception as e:
+    print(f"❌ Autre erreur : {e}")

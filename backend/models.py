@@ -13,13 +13,15 @@ class User(Base):
     username        = Column(String,  unique=True, nullable=False, index=True)
     email           = Column(String,  unique=True, nullable=False, index=True)
     password_hash   = Column(String,  nullable=False)
-    ville           = Column(String,  nullable=False)   # nom saisi par l'utilisateur
-    latitude        = Column(Float,   nullable=True)    # coordonnées géocodées
+    ville           = Column(String,  nullable=False)
+    latitude        = Column(Float,   nullable=True)
     longitude       = Column(Float,   nullable=True)
-    ville_reference = Column(String,  nullable=True)    # clé ville référence ex: "douala"
+    ville_reference = Column(String,  nullable=True)
     role            = Column(String,  nullable=False)
     is_active       = Column(Boolean, default=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    # ✅ Nouveau champ — null tant que l'utilisateur ne s'est pas reconnecté
+    last_login      = Column(DateTime(timezone=True), nullable=True, default=None)
 
     activities      = relationship("UserActivity",       back_populates="user", cascade="all, delete")
     recommendations = relationship("RecommendationLog",  back_populates="user", cascade="all, delete")

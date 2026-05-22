@@ -3,10 +3,9 @@ import { createContext, useContext, useState } from 'react';
 import { login as apiLogin } from '../api/auth';
 
 const AuthContext = createContext(null);
-export { AuthContext }; // ← permet import { AuthContext } dans les nouveaux fichiers
+export { AuthContext };
 
 export function AuthProvider({ children }) {
-
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem('access_token');
     if (!token) return null;
@@ -20,34 +19,33 @@ export function AuthProvider({ children }) {
   });
 
   const login = async (email, password) => {
-    const response = await apiLogin({ email, password });
-    const data = response.data;
-
+    const { data } = await apiLogin({ email, password });
     localStorage.setItem('access_token',    data.access_token);
     localStorage.setItem('role',            data.role);
     localStorage.setItem('username',        data.username);
     localStorage.setItem('ville',           data.ville);
     localStorage.setItem('ville_reference', data.ville_reference ?? '');
-
-    setUser({
-      token:           data.access_token,
-      role:            data.role,
-      username:        data.username,
-      ville:           data.ville,
-      ville_reference: data.ville_reference,
-    });
-
+    setUser({ token: data.access_token, role: data.role, username: data.username,
+              ville: data.ville, ville_reference: data.ville_reference });
     return data.role;
+  };
+
+  // ✅ NOUVEAU — synchronise state + localStorage après save profil
+  const updateUser = (updates) => {
+    ['username', 'ville', 'ville_reference', 'role'].forEach(
+      (k) => updates[k] !== undefined && localStorage.setItem(k, updates[k] ?? '')
+    );
+    setUser((prev) => ({ ...prev, ...updates }));
   };
 
   const logout = () => {
     ['access_token', 'role', 'username', 'ville', 'ville_reference']
-      .forEach((key) => localStorage.removeItem(key));
+      .forEach((k) => localStorage.removeItem(k));
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
