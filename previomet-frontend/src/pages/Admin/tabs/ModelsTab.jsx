@@ -1,8 +1,7 @@
 // src/pages/Admin/tabs/ModelsTab.jsx
 
 import { useState, useEffect, useRef } from "react";
-import { getModels, launchTrainingFetch } from "../../../api/admin";
-import { useAuth } from "../../../context/AuthContext";
+import { getModels, launchTraining, getTrainStatus, resetTrainState } from "../../../api/admin";
 
 const VARIABLES = [
   { key: "temperature",   label: "🌡️ Température",      maeUnite: "°C"  },
@@ -23,12 +22,11 @@ const VAR_LABELS = {
   precipitation:"Précipitations", humidite:"Humidité",
 };
 
-// Seuils de statut basés sur les vraies unités par variable
 const SEUILS_STATUT = {
-  temperature:   { excellent: 1.0,  bon: 2.0  },  // °C
-  humidite:      { excellent: 5.0,  bon: 10.0 },  // %
-  precipitation: { excellent: 0.5,  bon: 1.5  },  // mm
-  vent:          { excellent: 2.0,  bon: 4.0  },  // km/h
+  temperature:   { excellent: 1.0,  bon: 2.0  },
+  humidite:      { excellent: 5.0,  bon: 10.0 },
+  precipitation: { excellent: 0.5,  bon: 1.5  },
+  vent:          { excellent: 2.0,  bon: 4.0  },
 };
 
 function getStatut(mae, variableKey) {
@@ -38,7 +36,6 @@ function getStatut(mae, variableKey) {
   return                         { label: "À surveiller", bg: "#fef3c7", color: "#b45309" };
 }
 
-// Meilleur et pire MAE — température uniquement pour comparer sur la même unité
 function findBestWorstMAE(metriques) {
   let best  = { mae: Infinity,  horizon: "", variable: "" };
   let worst = { mae: -Infinity, horizon: "", variable: "" };
@@ -102,7 +99,6 @@ function AccordeonVariable({ variable, metriques, defaultOpen }) {
     return { horizon: h, mae: data.MAE, rmse: data.RMSE };
   }).filter(Boolean);
 
-  // MAE moyenne pour le résumé en en-tête
   const maeMoyenne = lignes.length
     ? (lignes.reduce((a, l) => a + l.mae, 0) / lignes.length).toFixed(2)
     : "—";
@@ -139,7 +135,6 @@ function AccordeonVariable({ variable, metriques, defaultOpen }) {
             return (
               <div key={horizon} style={styles.modelRow}>
                 <span style={styles.horizonPill}>{HORIZON_LABELS[horizon]}</span>
-                {/* MAE en vraies unités — plus de × 100 */}
                 <span style={styles.maeVal}>
                   ±{mae.toFixed(2)} {variable.maeUnite}
                 </span>
@@ -181,17 +176,22 @@ function CercleProgression({ progress }) {
 }
 
 export default function ModelsTab() {
-  const { token } = useAuth();
-  const [etat,          setEtat]          = useState("chargement");
-  const [metriques,     setMetriques]     = useState(null);
-  const [erreurMsg,     setErreurMsg]     = useState("");
-  const [trainEtat,     setTrainEtat]     = useState("idle");
-  const [trainProgress, setTrainProgress] = useState(0);
-  const [trainMessage,  setTrainMessage]  = useState("");
-  const [trainDuree,    setTrainDuree]    = useState("");
-  const abortRef = useRef(false);
+  const [etat,         setEtat]         = useState("chargement");
+  const [metriques,    setMetriques]    = useState(null);
+  const [erreurMsg,    setErreurMsg]    = useState("");
+  const [trainEtat,    setTrainEtat]    = useState("idle");
+  const [trainProgress,setTrainProgress]= useState(0);
+  const [trainMessage, setTrainMessage] = useState("");
+  const [trainDuree,   setTrainDuree]   = useState("");
+  const [trainError,   setTrainError]   = useState("");
+  const pollingRef = useRef(null);
 
-  useEffect(() => { chargerModeles(); }, []);
+  useEffect(() => {
+    chargerModeles();
+    // Vérifier s'il y a un entraînement déjà en cours au montage
+    verifierStatutInitial();
+    return () => stopPolling();
+  }, []);
 
   async function chargerModeles() {
     setEtat("chargement");
@@ -206,45 +206,84 @@ export default function ModelsTab() {
     }
   }
 
-  async function lancerEntrainement() {
-    if (trainEtat === "en_cours") return;
-    abortRef.current = false;
-    setTrainEtat("en_cours");
-    setTrainProgress(0);
-    setTrainMessage("Initialisation...");
-    await launchTrainingFetch(
-      token,
-      (data) => {
-        if (abortRef.current) return;
-        setTrainProgress(data.progress || 0);
-        setTrainMessage(data.message   || "Entraînement en cours...");
-      },
-      (data) => {
-        if (abortRef.current) return;
-        if (data.success) {
-          setTrainProgress(100);
-          setTrainDuree(data.duration || "");
-          setTrainEtat("succes");
-          setTimeout(() => chargerModeles(), 1500);
-        } else {
-          setTrainMessage(data.message || "Erreur durant l'entraînement");
-          setTrainEtat("erreur_train");
-        }
-      },
-      (msg) => {
-        if (abortRef.current) return;
-        setTrainMessage(msg);
-        setTrainEtat("erreur_train");
+  async function verifierStatutInitial() {
+    try {
+      const res = await getTrainStatus();
+      const s = res.data;
+      if (s.running) {
+        // Un entraînement tourne déjà côté backend → on reprend le polling
+        setTrainEtat("en_cours");
+        setTrainProgress(s.progress);
+        setTrainMessage(s.message);
+        startPolling();
       }
-    );
+    } catch {
+      // Pas bloquant
+    }
   }
 
-  function resetTrain() {
-    abortRef.current = true;
+  function startPolling() {
+    stopPolling();
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await getTrainStatus();
+        const s = res.data;
+        setTrainProgress(s.progress);
+        setTrainMessage(s.message);
+
+        if (s.done) {
+          stopPolling();
+          if (s.success) {
+            setTrainDuree(s.duration || "");
+            setTrainEtat("succes");
+            setTimeout(() => chargerModeles(), 1500);
+          } else {
+            setTrainError(s.error || s.message || "Erreur inconnue");
+            setTrainEtat("erreur_train");
+          }
+        }
+      } catch {
+        // On laisse le polling tourner même en cas d'erreur réseau passagère
+      }
+    }, 2000); // toutes les 2 secondes
+  }
+
+  function stopPolling() {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }
+
+  async function lancerEntrainement() {
+    if (trainEtat === "en_cours") return;
+    setTrainEtat("en_cours");
+    setTrainProgress(5);
+    setTrainMessage("Initialisation...");
+    setTrainError("");
+    try {
+      await launchTraining();
+      startPolling();
+    } catch (err) {
+      const detail = err?.response?.data?.detail || "Impossible de lancer l'entraînement.";
+      setTrainError(detail);
+      setTrainMessage(detail);
+      setTrainEtat("erreur_train");
+    }
+  }
+
+  async function resetTrain() {
+    stopPolling();
+    try {
+      await resetTrainState();
+    } catch {
+      // Pas bloquant si le reset échoue
+    }
     setTrainEtat("idle");
     setTrainProgress(0);
     setTrainMessage("");
     setTrainDuree("");
+    setTrainError("");
   }
 
   const nbModeles   = metriques ? compterModeles(metriques) : 0;
@@ -347,6 +386,9 @@ export default function ModelsTab() {
           <span style={{ fontSize: 40 }}>❌</span>
           <div style={styles.trainTitre}>Erreur durant l'entraînement</div>
           <div style={styles.trainMsg}>{trainMessage}</div>
+          {trainError && (
+            <pre style={styles.trainErrDetail}>{trainError}</pre>
+          )}
           <button style={styles.retryBtn} onClick={resetTrain}>Retour</button>
         </div>
       )}
@@ -381,6 +423,7 @@ const styles = {
   trainTitre: { fontFamily: "'DM Sans', sans-serif", fontSize: "18px", fontWeight: "600", color: "#0a1a4a", textAlign: "center" },
   trainSub: { fontFamily: "'DM Sans', sans-serif", fontSize: "13px", color: "#5a7a9a", textAlign: "center" },
   trainMsg: { fontFamily: "'DM Sans', sans-serif", fontSize: "12.5px", color: "#8aa0b8", textAlign: "center", fontStyle: "italic", maxWidth: "400px" },
+  trainErrDetail: { fontFamily: "'DM Mono', monospace", fontSize: "11px", color: "#c0392b", background: "#fdecea", padding: "12px 16px", borderRadius: "8px", maxWidth: "500px", width: "100%", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", margin: "0" },
   progCercleWrap: { position: "relative", width: "110px", height: "110px", marginBottom: "6px" },
   progPctText: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", fontFamily: "'DM Sans', sans-serif", fontSize: "22px", fontWeight: "700", color: "#0a1a4a" },
   checkCercle: { width: "72px", height: "72px", borderRadius: "50%", background: "#e8f5ec", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "4px" },
