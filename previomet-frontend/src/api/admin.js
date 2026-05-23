@@ -10,44 +10,87 @@ import api from "./axios";
 /**
  * GET /admin/models
  * Retourne le contenu de metrics.json (métriques par horizon et variable)
- * Structure attendue : { H3: { temperature: {MAE, RMSE}, ... }, date_entrainement: "..." }
+ * Structure attendue : { H3: { temperature: {MAE, RMSE}, vent: {...}, ... }, ..., date_entrainement: "..." }
  */
 export function getModels() {
   return api.get("/admin/models");
 }
 
 /**
- * POST /admin/train
- * Lance l'entraînement en arrière-plan. Répond immédiatement { message }.
- * Utilisez getTrainStatus() en polling pour suivre la progression.
+ * POST /admin/train  (Server-Sent Events)
+ * Lance l'entraînement XGBoost et diffuse la progression en temps réel.
+ * On utilise fetch() natif car axios ne gère pas le streaming SSE.
  *
- * Pourquoi on abandonne le SSE ?
- *   Render (hébergeur distant) bufferise les réponses longues et coupe
- *   les connexions après ~30s → le SSE ne fonctionne pas de manière fiable.
- *   Le polling (appel toutes les 2s à /admin/train/status) est plus robuste.
- */
-export function launchTraining() {
-  return api.post("/admin/train");
-}
-
-/**
- * GET /admin/train/status
- * Retourne l'état courant de l'entraînement.
- * Structure : { running, progress, message, done, success, duration, error }
+ * Corrections :
+ *   - L'URL est construite depuis api.defaults.baseURL pour être cohérente
+ *     avec l'intercepteur Axios (évite les doublons de préfixe /api ou les
+ *     mauvais ports si VITE_API_URL n'est pas défini).
+ *   - Meilleure gestion des erreurs HTTP : on tente de lire le JSON, sinon
+ *     on affiche le statut brut pour faciliter le diagnostic.
  *
- * Appelé toutes les 2 secondes depuis ModelsTab pendant l'entraînement.
+ * @param {string} token          - JWT token récupéré depuis AuthContext
+ * @param {function} onProgress   - callback({ progress, message })
+ * @param {function} onDone       - callback({ success, duration, message })
+ * @param {function} onError      - callback(messageErreur: string)
  */
-export function getTrainStatus() {
-  return api.get("/admin/train/status");
-}
+export async function launchTrainingFetch(token, onProgress, onDone, onError) {
+  // ── Réutilise le même baseURL que l'instance Axios ──────────────────────
+  // Cela évite de dupliquer la config (port, préfixe /api, etc.)
+  const baseUrl = api.defaults.baseURL || import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-/**
- * POST /admin/train/reset
- * Remet l'état d'entraînement backend à zéro après succès ou erreur.
- * À appeler quand l'utilisateur clique "Retour aux modèles".
- */
-export function resetTrainState() {
-  return api.post("/admin/train/reset");
+  try {
+    const response = await fetch(`${baseUrl}/admin/train`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      // ── Tente de lire le détail JSON renvoyé par FastAPI ────────────────
+      let detail = `Erreur HTTP ${response.status}`;
+      try {
+        const err = await response.json();
+        detail = err.detail || detail;
+      } catch {
+        // Corps non-JSON (ex: 502 Nginx) → on garde le message générique
+      }
+      onError(detail);
+      return;
+    }
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer    = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // garder le fragment incomplet
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        try {
+          const data = JSON.parse(trimmed.slice(5).trim());
+          if (data.done) {
+            onDone(data);
+          } else {
+            onProgress(data);
+          }
+        } catch {
+          // ligne non-JSON (ex: commentaire SSE keepalive), on ignore
+        }
+      }
+    }
+  } catch (err) {
+    onError(err.message || "Connexion au backend perdue pendant l'entraînement.");
+  }
 }
 
 // ─── Utilisateurs ─────────────────────────────────────────────────────────────
@@ -70,6 +113,7 @@ export function getUsers() {
  * Retourne la liste des villes avec leurs stats.
  * Structure attendue par ville :
  * { nom, region, nb_utilisateurs, precision }
+ * Note : precision peut être un float entre 0 et 1 (ex: 0.942) ou déjà en %
  */
 export function getCities() {
   return api.get("/admin/cities");
