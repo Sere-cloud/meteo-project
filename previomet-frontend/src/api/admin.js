@@ -21,13 +21,23 @@ export function getModels() {
  * Lance l'entraînement XGBoost et diffuse la progression en temps réel.
  * On utilise fetch() natif car axios ne gère pas le streaming SSE.
  *
+ * Corrections :
+ *   - L'URL est construite depuis api.defaults.baseURL pour être cohérente
+ *     avec l'intercepteur Axios (évite les doublons de préfixe /api ou les
+ *     mauvais ports si VITE_API_URL n'est pas défini).
+ *   - Meilleure gestion des erreurs HTTP : on tente de lire le JSON, sinon
+ *     on affiche le statut brut pour faciliter le diagnostic.
+ *
  * @param {string} token          - JWT token récupéré depuis AuthContext
  * @param {function} onProgress   - callback({ progress, message })
  * @param {function} onDone       - callback({ success, duration, message })
  * @param {function} onError      - callback(messageErreur: string)
  */
 export async function launchTrainingFetch(token, onProgress, onDone, onError) {
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  // ── Réutilise le même baseURL que l'instance Axios ──────────────────────
+  // Cela évite de dupliquer la config (port, préfixe /api, etc.)
+  const baseUrl = api.defaults.baseURL || import.meta.env.VITE_API_URL || "http://localhost:8000";
+
   try {
     const response = await fetch(`${baseUrl}/admin/train`, {
       method: "POST",
@@ -39,14 +49,21 @@ export async function launchTrainingFetch(token, onProgress, onDone, onError) {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      onError(err.detail || `Erreur ${response.status} lors du lancement de l'entraînement`);
+      // ── Tente de lire le détail JSON renvoyé par FastAPI ────────────────
+      let detail = `Erreur HTTP ${response.status}`;
+      try {
+        const err = await response.json();
+        detail = err.detail || detail;
+      } catch {
+        // Corps non-JSON (ex: 502 Nginx) → on garde le message générique
+      }
+      onError(detail);
       return;
     }
 
-    const reader = response.body.getReader();
+    const reader  = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let buffer = "";
+    let buffer    = "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -67,7 +84,7 @@ export async function launchTrainingFetch(token, onProgress, onDone, onError) {
             onProgress(data);
           }
         } catch {
-          // ligne non-JSON, on ignore
+          // ligne non-JSON (ex: commentaire SSE keepalive), on ignore
         }
       }
     }
